@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🐍 Smooth Snake</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #0f1722;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+        #root {
+            background: #16222e;
+            padding: 22px 28px 28px;
+            border-radius: 40px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8);
+            max-width: 780px;
+        }
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 14px;
+            color: #bdd3e8;
+            font-weight: 600;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .score-box {
+            background: #0b141e;
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 22px;
+            color: #7edf98;
+        }
+        .status {
+            background: #0b141e;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 15px;
+        }
+        .level-badge {
+            background: #0b141e;
+            padding: 4px 16px;
+            border-radius: 40px;
+            font-size: 14px;
+            color: #feca57;
+        }
+        .board-container {
+            background: #0f1a26;
+            padding: 12px;
+            border-radius: 28px;
+            box-shadow: inset 0 0 0 1px #2c4056;
+            transition: background 0.3s;
+            position: relative;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(20, 28px);
+            grid-template-rows: repeat(20, 28px);
+            gap: 0px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #1a2a3a;
+            transition: background 0.3s;
+            position: relative;
+        }
+        .cell {
+            position: relative;
+            transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* ---- SMOOTH SNAKE - NO GRID LINES ---- */
+        .cell.snake {
+            border-radius: 50%;
+            z-index: 2;
+            position: relative;
+            transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Snake body with gradient for 3D effect */
+        .cell.snake-classic {
+            background: radial-gradient(circle at 35% 35%, #66bb6a, #2e7d32);
+            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .cell.snake-neon {
+            background: radial-gradient(circle at 35% 35%, #00ffea, #00b894);
+            box-shadow: 0 0 20px rgba(0, 245, 212, 0.8), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .cell.snake-pixel {
+            background: radial-gradient(circle at 35% 35%, #d4e157, #8bc34a);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(139, 195, 74, 0.6);
+        }
+        .cell.snake-rainbow {
+            background: radial-gradient(circle at 35% 35%, #ff6b6b, #feca57, #48dbfb, #a29bfe);
+            background-size: 300% 300%;
+            animation: rainbowMove 2s ease infinite;
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+        }
+        @keyframes rainbowMove {
+            0% {
+                background-position: 0% 50%
+            }
+            50% {
+                background-position: 100% 50%
+            }
+            100% {
+                background-position: 0% 50%
+            }
+        }
+        .cell.snake-gold {
+            background: radial-gradient(circle at 35% 35%, #ffd700, #f9a825);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.8), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .cell.snake-ice {
+            background: radial-gradient(circle at 35% 35%, #80deea, #00acc1);
+            box-shadow: 0 0 20px rgba(77, 208, 225, 0.7), inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .cell.snake-lava {
+            background: radial-gradient(circle at 35% 35%, #ff7043, #d84315);
+            box-shadow: 0 0 25px rgba(255, 87, 34, 0.8), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.9;
+            }
+            100% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+        }
+        .cell.snake-candy {
+            background: radial-gradient(circle at 35% 35%, #f48fb1, #e91e63);
+            border-radius: 60% 40% 50% 50% / 40% 50% 60% 50%;
+            box-shadow: 0 0 25px rgba(233, 30, 99, 0.6);
+        }
+        .cell.snake-matrix {
+            background: radial-gradient(circle at 35% 35%, #69f0ae, #00c853);
+            box-shadow: 0 0 25px rgba(0, 230, 118, 0.8), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .cell.snake-ocean {
+            background: radial-gradient(circle at 35% 35%, #4fc3f7, #0288d1);
+            box-shadow: 0 0 25px rgba(41, 182, 246, 0.7), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .cell.snake-sunset {
+            background: radial-gradient(circle at 35% 35%, #ff6f00, #f44336, #e91e63);
+            background-size: 200% 200%;
+            animation: rainbowMove 3s ease infinite;
+            box-shadow: 0 0 25px rgba(244, 67, 54, 0.6);
+        }
+
+        /* Snake head - bigger and distinct */
+        .cell.head {
+            border-radius: 50%;
+            z-index: 3;
+            transform: scale(1.15);
+        }
+        .cell.head-classic {
+            background: radial-gradient(circle at 30% 30%, #81c784, #1b5e20);
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.8), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
+        }
+        .cell.head-neon {
+            background: radial-gradient(circle at 30% 30%, #00ffea, #00897b);
+            box-shadow: 0 0 35px rgba(0, 245, 212, 0.9);
+        }
+        .cell.head-pixel {
+            background: radial-gradient(circle at 30% 30%, #d4e157, #7cb342);
+            border-radius: 4px;
+            box-shadow: 0 0 25px rgba(139, 195, 74, 0.7);
+        }
+        .cell.head-rainbow {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #feca57, #48dbfb, #a29bfe);
+            background-size: 300% 300%;
+            animation: rainbowMove 1.5s ease infinite;
+            box-shadow: 0 0 35px rgba(255, 107, 107, 0.7);
+        }
+        .cell.head-gold {
+            background: radial-gradient(circle at 30% 30%, #ffd700, #f57f17);
+            box-shadow: 0 0 35px rgba(255, 215, 0, 0.9);
+        }
+        .cell.head-ice {
+            background: radial-gradient(circle at 30% 30%, #80deea, #00838f);
+            box-shadow: 0 0 35px rgba(77, 208, 225, 0.8);
+        }
+        .cell.head-lava {
+            background: radial-gradient(circle at 30% 30%, #ff7043, #bf360c);
+            box-shadow: 0 0 35px rgba(255, 87, 34, 0.9);
+            animation: pulse 0.8s infinite alternate;
+        }
+        .cell.head-candy {
+            background: radial-gradient(circle at 30% 30%, #f48fb1, #c2185b);
+            border-radius: 60% 40% 50% 50% / 40% 50% 60% 50%;
+            box-shadow: 0 0 35px rgba(233, 30, 99, 0.7);
+        }
+        .cell.head-matrix {
+            background: radial-gradient(circle at 30% 30%, #69f0ae, #00a152);
+            box-shadow: 0 0 35px rgba(0, 230, 118, 0.9);
+        }
+        .cell.head-ocean {
+            background: radial-gradient(circle at 30% 30%, #4fc3f7, #01579b);
+            box-shadow: 0 0 35px rgba(41, 182, 246, 0.8);
+        }
+        .cell.head-sunset {
+            background: radial-gradient(circle at 30% 30%, #ff6f00, #f44336, #e91e63);
+            background-size: 200% 200%;
+            animation: rainbowMove 2s ease infinite;
+            box-shadow: 0 0 35px rgba(244, 67, 54, 0.7);
+        }
+
+        /* ---- FRUIT STYLES (real icons) ---- */
+        .cell.fruit {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            animation: fruitFloat 1.2s ease-in-out infinite alternate;
+            background: transparent !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            z-index: 1;
+        }
+        @keyframes fruitFloat {
+            0% {
+                transform: translateY(-3px) scale(0.9) rotate(-5deg);
+            }
+            100% {
+                transform: translateY(5px) scale(1.1) rotate(5deg);
+            }
+        }
+        .cell.fruit-apple::before {
+            content: "🍎";
+        }
+        .cell.fruit-gold::before {
+            content: "🌟";
+        }
+        .cell.fruit-star::before {
+            content: "⭐";
+        }
+        .cell.fruit-berry::before {
+            content: "🍓";
+        }
+        .cell.fruit-peach::before {
+            content: "🍑";
+        }
+        .cell.fruit-grape::before {
+            content: "🍇";
+        }
+        .cell.fruit-watermelon::before {
+            content: "🍉";
+        }
+        .cell.fruit-orange::before {
+            content: "🍊";
+        }
+        .cell.fruit-lemon::before {
+            content: "🍋";
+        }
+        .cell.fruit-cherry::before {
+            content: "🍒";
+        }
+        .cell.fruit-mango::before {
+            content: "🥭";
+        }
+        .cell.fruit-pineapple::before {
+            content: "🍍";
+        }
+        .cell.fruit-banana::before {
+            content: "🍌";
+        }
+        .cell.fruit-avocado::before {
+            content: "🥑";
+        }
+        .cell.fruit-kiwi::before {
+            content: "🥝";
+        }
+        .cell.fruit-tomato::before {
+            content: "🍅";
+        }
+        .cell.fruit-coconut::before {
+            content: "🥥";
+        }
+        .cell.fruit-donut::before {
+            content: "🍩";
+        }
+        .cell.fruit-cookie::before {
+            content: "🍪";
+        }
+        .cell.fruit-cake::before {
+            content: "🧁";
+        }
+
+        /* ---- BOARD THEMES (flat, no grid) ---- */
+        .board-dark {
+            background: #1a2a3a;
+        }
+        .board-dark .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-light {
+            background: #e8f0fe;
+        }
+        .board-light .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+        .board-light .cell.snake-classic {
+            background: radial-gradient(circle at 35% 35%, #66bb6a, #1b5e20);
+        }
+        .board-light .cell.head-classic {
+            background: radial-gradient(circle at 30% 30%, #81c784, #1b5e20);
+        }
+
+        .board-grid {
+            background: #1a2a3a;
+        }
+        .board-grid .cell:not(.snake):not(.fruit) {
+            background: #1a2a3a;
+            box-shadow: inset 0 0 0 1px #2c4056;
+        }
+
+        .board-spring {
+            background: linear-gradient(135deg, #a8d8ea, #aa96da, #fcbad3);
+        }
+        .board-spring .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-summer {
+            background: linear-gradient(135deg, #ff9a9e, #fecfef, #fdfcfb);
+        }
+        .board-summer .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-autumn {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+        }
+        .board-autumn .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-winter {
+            background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+        }
+        .board-winter .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-ocean {
+            background: linear-gradient(135deg, #2b5876, #4e4376);
+        }
+        .board-ocean .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-space {
+            background: radial-gradient(circle at 20% 30%, #1a1a2e, #16213e, #0f3460);
+        }
+        .board-space .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-neon {
+            background: #0a0a1a;
+        }
+        .board-neon .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-pastel {
+            background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+        }
+        .board-pastel .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        .board-retro {
+            background: #2d1b2d;
+        }
+        .board-retro .cell:not(.snake):not(.fruit) {
+            background: transparent;
+        }
+
+        /* ---- CONTROLS ---- */
+        .controls {
+            margin-top: 16px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .controls button {
+            background: #1f3247;
+            border: none;
+            padding: 8px 22px;
+            border-radius: 40px;
+            color: #d4e6ff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0b141e;
+            transition: 0.06s linear;
+        }
+        .controls button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #0b141e;
+        }
+        .controls button:disabled {
+            opacity: 0.4;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #0b141e;
+            pointer-events: none;
+        }
+        .arrows {
+            display: grid;
+            grid-template-columns: repeat(3, 46px);
+            grid-template-rows: repeat(3, 46px);
+            gap: 5px;
+            margin-top: 12px;
+        }
+        .arrows button {
+            background: #1f3247;
+            border: none;
+            border-radius: 14px;
+            color: #bdd3e8;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0b141e;
+            transition: 0.06s linear;
+        }
+        .arrows button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #0b141e;
+        }
+        .arrows .empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .style-panel {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: #0f1a26;
+            padding: 12px 18px;
+            border-radius: 40px;
+            width: 100%;
+        }
+        .style-panel label {
+            color: #b0d0e8;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .style-panel select {
+            background: #1f3247;
+            border: none;
+            color: #d4e6ff;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .footer {
+            margin-top: 10px;
+            color: #5a7b97;
+            font-size: 12px;
+        }
+        .key-hint {
+            display: inline-block;
+            background: #0b141e;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #feca57;
+            margin: 0 2px;
+        }
+        @media (max-width: 700px) {
+            .board {
+                grid-template-columns: repeat(20, 20px);
+                grid-template-rows: repeat(20, 20px);
+                gap: 0px;
+            }
+            #root {
+                padding: 14px;
+            }
+            .style-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+            .cell.fruit {
+                font-size: 18px;
+            }
+        }
+        @media (max-width: 480px) {
+            .board {
+                grid-template-columns: repeat(20, 16px);
+                grid-template-rows: repeat(20, 16px);
+                gap: 0px;
+            }
+            .cell.fruit {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js">
+    </script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js">
+    </script>
+
+    <script>
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        const SIZE = 20;
+        const INIT_SNAKE = [
+            [10, 10],
+            [10, 9],
+            [10, 8]
+        ];
+        const INIT_DIR = 'RIGHT';
+        const BASE_SPEED = 150;
+        const MIN_SPEED = 50;
+        const SPEED_STEP = 5;
+
+        const SNAKE_OPTIONS = ['classic', 'neon', 'pixel', 'rainbow', 'gold', 'ice', 'lava', 'candy', 'matrix', 'ocean',
+            'sunset'
+        ];
+        const FRUIT_OPTIONS = ['apple', 'gold', 'star', 'berry', 'peach', 'grape', 'watermelon', 'orange', 'lemon', 'cherry',
+            'mango', 'pineapple', 'banana', 'avocado', 'kiwi', 'tomato', 'coconut', 'donut', 'cookie', 'cake'
+        ];
+        const BOARD_OPTIONS = ['dark', 'light', 'grid', 'spring', 'summer', 'autumn', 'winter', 'ocean', 'space', 'neon',
+            'pastel', 'retro'
+        ];
+
+        function getRandomFood(snake) {
+            const occupied = new Set(snake.map(c => `${c[0]},${c[1]}`));
+            const free = [];
+            for (let r = 0; r < SIZE; r++)
+                for (let c = 0; c < SIZE; c++) {
+                    if (!occupied.has(`${r},${c}`)) free.push([r, c]);
+                }
+            if (free.length === 0) return null;
+            return free[Math.floor(Math.random() * free.length)];
+        }
+
+        function SnakeGame() {
+            const [snake, setSnake] = useState(INIT_SNAKE);
+            const [food, setFood] = useState(() => getRandomFood(INIT_SNAKE));
+            const [dir, setDir] = useState(INIT_DIR);
+            const [nextDir, setNextDir] = useState(INIT_DIR);
+            const [score, setScore] = useState(0);
+            const [gameOver, setGameOver] = useState(false);
+            const [win, setWin] = useState(false);
+            const [running, setRunning] = useState(false);
+            const [paused, setPaused] = useState(false);
+            const [speed, setSpeed] = useState(BASE_SPEED);
+            const [snakeStyle, setSnakeStyle] = useState('classic');
+            const [fruitStyle, setFruitStyle] = useState('apple');
+            const [boardStyle, setBoardStyle] = useState('dark');
+
+            const intervalRef = useRef(null);
+            const snakeRef = useRef(snake);
+            const foodRef = useRef(food);
+            const dirRef = useRef(dir);
+            const nextDirRef = useRef(nextDir);
+            const scoreRef = useRef(score);
+            const gameOverRef = useRef(gameOver);
+            const winRef = useRef(win);
+            const speedRef = useRef(speed);
+            const runningRef = useRef(running);
+            const pausedRef = useRef(paused);
+
+            useEffect(() => {
+                snakeRef.current = snake;
+                foodRef.current = food;
+                dirRef.current = dir;
+                nextDirRef.current = nextDir;
+                scoreRef.current = score;
+                gameOverRef.current = gameOver;
+                winRef.current = win;
+                speedRef.current = speed;
+                runningRef.current = running;
+                pausedRef.current = paused;
+            }, [snake, food, dir, nextDir, score, gameOver, win, speed, running, paused]);
+
+            useEffect(() => {
+                const newSpeed = Math.max(MIN_SPEED, BASE_SPEED - Math.floor(score / 4) * SPEED_STEP);
+                setSpeed(newSpeed);
+            }, [score]);
+
+            useEffect(() => {
+                if (running && !paused && !gameOver && !win) {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    intervalRef.current = setInterval(step, speed);
+                } else if (paused || gameOver || win || !running) {
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                }
+                return () => {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                };
+            }, [speed, running, paused, gameOver, win]);
+
+            const step = useCallback(() => {
+                if (gameOverRef.current || winRef.current || pausedRef.current || !runningRef.current) {
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                    return;
+                }
+                const currentSnake = snakeRef.current;
+                const currentFood = foodRef.current;
+                const currentDir = dirRef.current;
+                const newDir = nextDirRef.current;
+                const opposite = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                const finalDir = opposite[newDir] === currentDir ? currentDir : newDir;
+                const head = currentSnake[0];
+                let newHead = [...head];
+                switch (finalDir) {
+                    case 'RIGHT':
+                        newHead[1]++;
+                        break;
+                    case 'LEFT':
+                        newHead[1]--;
+                        break;
+                    case 'UP':
+                        newHead[0]--;
+                        break;
+                    case 'DOWN':
+                        newHead[0]++;
+                        break;
+                }
+                if (newHead[0] < 0 || newHead[0] >= SIZE || newHead[1] < 0 || newHead[1] >= SIZE) {
+                    setGameOver(true);
+                    gameOverRef.current = true;
+                    setRunning(false);
+                    runningRef.current = false;
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                    return;
+                }
+                const eating = currentFood && newHead[0] === currentFood[0] && newHead[1] === currentFood[1];
+                let newSnake = eating ? [newHead, ...currentSnake] : [newHead, ...currentSnake.slice(0, -1)];
+                const headStr = `${newHead[0]},${newHead[1]}`;
+                const bodySet = new Set(newSnake.slice(1).map(c => `${c[0]},${c[1]}`));
+                if (bodySet.has(headStr)) {
+                    setGameOver(true);
+                    gameOverRef.current = true;
+                    setRunning(false);
+                    runningRef.current = false;
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                    return;
+                }
+                setSnake(newSnake);
+                snakeRef.current = newSnake;
+                if (eating) {
+                    const newScore = scoreRef.current + 1;
+                    setScore(newScore);
+                    scoreRef.current = newScore;
+                    const newFood = getRandomFood(newSnake);
+                    if (newFood === null) {
+                        setWin(true);
+                        winRef.current = true;
+                        setFood(null);
+                        foodRef.current = null;
+                        setRunning(false);
+                        runningRef.current = false;
+                        if (intervalRef.current) {
+                            clearInterval(intervalRef.current);
+                            intervalRef.current = null;
+                        }
+                    } else {
+                        setFood(newFood);
+                        foodRef.current = newFood;
+                    }
+                }
+                setDir(finalDir);
+                dirRef.current = finalDir;
+                setNextDir(finalDir);
+                nextDirRef.current = finalDir;
+            }, []);
+
+            const togglePause = useCallback(() => {
+                if (gameOverRef.current || winRef.current) {
+                    // If game over or win, start a new game
+                    resetAndStart();
+                    return;
+                }
+                if (!runningRef.current) {
+                    // If not running, start
+                    startGame();
+                    return;
+                }
+                // Toggle pause
+                setPaused(prev => !prev);
+                pausedRef.current = !pausedRef.current;
+            }, []);
+
+            const resetAndStart = useCallback(() => {
+                if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+                setSnake(INIT_SNAKE);
+                snakeRef.current = INIT_SNAKE;
+                const f = getRandomFood(INIT_SNAKE);
+                setFood(f);
+                foodRef.current = f;
+                setDir(INIT_DIR);
+                dirRef.current = INIT_DIR;
+                setNextDir(INIT_DIR);
+                nextDirRef.current = INIT_DIR;
+                setScore(0);
+                scoreRef.current = 0;
+                setGameOver(false);
+                gameOverRef.current = false;
+                setWin(false);
+                winRef.current = false;
+                setRunning(false);
+                runningRef.current = false;
+                setPaused(false);
+                pausedRef.current = false;
+                setSpeed(BASE_SPEED);
+                startGame();
+            }, []);
+
+            const startGame = useCallback(() => {
+                if (intervalRef.current) clearInterval(intervalRef.current);
+                if (gameOverRef.current || winRef.current) {
+                    setSnake(INIT_SNAKE);
+                    snakeRef.current = INIT_SNAKE;
+                    const f = getRandomFood(INIT_SNAKE);
+                    setFood(f);
+                    foodRef.current = f;
+                    setDir(INIT_DIR);
+                    dirRef.current = INIT_DIR;
+                    setNextDir(INIT_DIR);
+                    nextDirRef.current = INIT_DIR;
+                    setScore(0);
+                    scoreRef.current = 0;
+                    setGameOver(false);
+                    gameOverRef.current = false;
+                    setWin(false);
+                    winRef.current = false;
+                    setSpeed(BASE_SPEED);
+                }
+                setRunning(true);
+                runningRef.current = true;
+                setPaused(false);
+                pausedRef.current = false;
+                intervalRef.current = setInterval(step, speed);
+            }, [step, speed]);
+
+            const handleNewGame = useCallback(() => {
+                resetAndStart();
+            }, [resetAndStart]);
+
+            useEffect(() => {
+                const handleKey = (e) => {
+                    // Space: pause/start
+                    if (e.key === ' ' || e.key === 'Space') {
+                        e.preventDefault();
+                        togglePause();
+                        return;
+                    }
+                    // R: new game
+                    if (e.key === 'r' || e.key === 'R') {
+                        e.preventDefault();
+                        handleNewGame();
+                        return;
+                    }
+                    // Arrow keys: movement
+                    const map = { ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT' };
+                    const newDir = map[e.key];
+                    if (!newDir || gameOverRef.current || winRef.current || pausedRef.current || !runningRef.current)
+                        return;
+                    e.preventDefault();
+                    const opposite = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                    if (opposite[newDir] !== dirRef.current) {
+                        setNextDir(newDir);
+                        nextDirRef.current = newDir;
+                    }
+                };
+                window.addEventListener('keydown', handleKey);
+                return () => window.removeEventListener('keydown', handleKey);
+            }, [togglePause, handleNewGame]);
+
+            useEffect(() => {
+                startGame();
+                return () => {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                };
+            }, []);
+
+            const getSnakeClass = (isHead) => {
+                const base = isHead ? 'head' : 'snake';
+                return `${base}-${snakeStyle}`;
+            };
+
+            const renderGrid = () => {
+                const cells = [];
+                const snakeSet = new Set(snake.map(c => `${c[0]},${c[1]}`));
+                const head = snake.length > 0 ? `${snake[0][0]},${snake[0][1]}` : '';
+                for (let r = 0; r < SIZE; r++) {
+                    for (let c = 0; c < SIZE; c++) {
+                        const key = `${r},${c}`;
+                        let cls = 'cell';
+                        if (snakeSet.has(key)) {
+                            const isHead = key === head;
+                            cls += ` snake ${getSnakeClass(isHead)}`;
+                        }
+                        if (food && food[0] === r && food[1] === c) {
+                            cls += ` fruit fruit-${fruitStyle}`;
+                        }
+                        cells.push(React.createElement('div', { key, className: cls }));
+                    }
+                }
+                return cells;
+            };
+
+            let statusText = win ? '🏆 WIN!' : gameOver ? '💀 GAME OVER' : paused ? '⏸ PAUSED' : '▶ PLAYING';
+            let statusColor = win ? '#ffd966' : gameOver ? '#ff8a8a' : paused ? '#feca57' : '#aad0f5';
+            const level = Math.floor(score / 4) + 1;
+
+            return React.createElement(
+                'div', { className: 'game-wrapper' },
+                React.createElement('div', { className: 'top-bar' },
+                    React.createElement('div', { className: 'score-box' }, '🍎 ', score),
+                    React.createElement('div', { className: 'level-badge' }, '⚡ Lv.', level),
+                    React.createElement('div', { className: 'status', style: { color: statusColor } }, statusText)
+                ),
+                React.createElement('div', { className: 'board-container' },
+                    React.createElement('div', { className: `board board-${boardStyle}` }, renderGrid())
+                ),
+                React.createElement('div', { className: 'style-panel' },
+                    React.createElement('label', null, '🐍 Snake',
+                        React.createElement('select', { value: snakeStyle, onChange: (e) => setSnakeStyle(e.target
+                                .value) },
+                            SNAKE_OPTIONS.map(s => React.createElement('option', { key: s, value: s }, s
+                            .charAt(0).toUpperCase() + s.slice(1)))
+                        )
+                    ),
+                    React.createElement('label', null, '🍎 Fruit',
+                        React.createElement('select', { value: fruitStyle, onChange: (e) => setFruitStyle(e.target
+                                .value) },
+                            FRUIT_OPTIONS.map(f => React.createElement('option', { key: f, value: f }, f
+                            .charAt(0).toUpperCase() + f.slice(1)))
+                        )
+                    ),
+                    React.createElement('label', null, '🎨 Board',
+                        React.createElement('select', { value: boardStyle, onChange: (e) => setBoardStyle(e.target
+                                .value) },
+                            BOARD_OPTIONS.map(b => React.createElement('option', { key: b, value: b }, b
+                            .charAt(0).toUpperCase() + b.slice(1)))
+                        )
+                    )
+                ),
+                React.createElement('div', { className: 'controls' },
+                    React.createElement('button', { onClick: handleNewGame }, '⟳ New (R)'),
+                    React.createElement('button', { onClick: togglePause, disabled: gameOver || win },
+                        paused ? '▶ Resume' : '⏸ Pause'
+                    ),
+                    React.createElement('button', { onClick: startGame, disabled: running || gameOver || win },
+                        '▶ Start')
+                ),
+                React.createElement('div', { className: 'arrows' },
+                    React.createElement('div', { className: 'empty' }),
+                    React.createElement('button', { onClick: () => { if (!gameOver && !win && running && !paused) {
+                                const opp = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                                const nd = 'UP';
+                                if (opp[nd] !== dirRef.current) { setNextDir(nd);
+                                    nextDirRef.current = nd; } } } }, '▲'),
+                    React.createElement('div', { className: 'empty' }),
+                    React.createElement('button', { onClick: () => { if (!gameOver && !win && running && !paused) {
+                                const opp = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                                const nd = 'LEFT';
+                                if (opp[nd] !== dirRef.current) { setNextDir(nd);
+                                    nextDirRef.current = nd; } } } }, '◀'),
+                    React.createElement('button', { onClick: () => { if (!gameOver && !win && running && !paused) {
+                                const opp = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                                const nd = 'DOWN';
+                                if (opp[nd] !== dirRef.current) { setNextDir(nd);
+                                    nextDirRef.current = nd; } } } }, '▼'),
+                    React.createElement('button', { onClick: () => { if (!gameOver && !win && running && !paused) {
+                                const opp = { UP: 'DOWN', DOWN: 'UP', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+                                const nd = 'RIGHT';
+                                if (opp[nd] !== dirRef.current) { setNextDir(nd);
+                                    nextDirRef.current = nd; } } } }, '▶'),
+                    React.createElement('div', { className: 'empty' })
+                ),
+                React.createElement('div', { className: 'footer' },
+                    React.createElement('span', null,
+                        React.createElement('span', { className: 'key-hint' }, 'Space'),
+                        ' pause/start  ·  ',
+                        React.createElement('span', { className: 'key-hint' }, 'R'),
+                        ' new game  ·  ⬆⬇⬅➡ move'
+                    )
+                )
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(SnakeGame));
+    </script>
+</body>
+</html>
