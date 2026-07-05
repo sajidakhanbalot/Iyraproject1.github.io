@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>CITY SNAKE :: CIRCUIT</title>
+<meta name="description" content="A cute city-themed Snake game with leveling skylines, surprise fruit, and combos — canvas rendered, touch-ready, zero dependencies." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#e8f6ff;
+    --dim:#7f9bb8;
+    --cabinet:#151a24;
+    --cabinet-2:#0d1119;
+    --screen:#050a12;
+    --cyan:#00f5d4;
+    --magenta:#ff2e88;
+    --amber:#ffb703;
+    --danger:#ff5470;
+    --bezel-glow: 0 0 0 1px rgba(0,245,212,0.15), 0 0 40px rgba(0,245,212,0.06);
+    --radius-cab: 34px;
+    --radius-screen: 18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% 0%, #1a2233 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, #1a1130 0%, transparent 40%),
+      #070a10;
+    color:var(--ink);
+    font-family:'Space Mono', monospace;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+  }
+  .display-font{ font-family:'Press Start 2P', monospace; }
+
+  /* ---------- CABINET ---------- */
+  .cabinet{
+    width:100%;
+    max-width:640px;
+    background:linear-gradient(155deg, var(--cabinet), var(--cabinet-2));
+    border-radius:var(--radius-cab);
+    padding:20px 20px 26px;
+    box-shadow:
+      0 30px 70px rgba(0,0,0,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.04),
+      inset 0 -2px 0 rgba(0,0,0,0.4);
+    position:relative;
+  }
+  .marquee{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 16px;
+    border-radius:16px;
+    background:linear-gradient(90deg, #10151f, #171d2b);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);
+    margin-bottom:14px;
+  }
+  .marquee h1{
+    font-size:13px;
+    margin:0;
+    letter-spacing:1px;
+    color:var(--cyan);
+    text-shadow:0 0 12px rgba(0,245,212,0.6);
+    animation: flicker 4.5s infinite;
+  }
+  .marquee .tag{
+    font-size:9px;
+    color:var(--dim);
+    letter-spacing:1px;
+  }
+  @keyframes flicker{
+    0%,96%,100%{opacity:1;}
+    97%{opacity:0.6;}
+    98%{opacity:1;}
+    99%{opacity:0.75;}
+  }
+
+  .hud{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .hud .stat{
+    background:var(--screen);
+    border-radius:12px;
+    padding:8px 10px;
+    text-align:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  .hud .stat .label{
+    font-size:8px;
+    color:var(--dim);
+    letter-spacing:1px;
+    display:block;
+    margin-bottom:4px;
+  }
+  .hud .stat .value{
+    font-size:14px;
+    color:var(--amber);
+    font-family:'Press Start 2P', monospace;
+  }
+  .hud .stat.score .value{ color:var(--cyan); }
+  .hud .stat.high .value{ color:var(--magenta); }
+
+  /* ---------- SCREEN / BEZEL ---------- */
+  .bezel{
+    background:#03060a;
+    border-radius:var(--radius-screen);
+    padding:10px;
+    box-shadow:var(--bezel-glow), inset 0 0 40px rgba(0,0,0,0.8);
+    position:relative;
+  }
+  .screen-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--screen);
+  }
+  canvas#board{
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+  }
+  .scanlines{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.12) 3px
+    );
+    mix-blend-mode:multiply;
+  }
+  .crt-vignette{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    box-shadow: inset 0 0 60px 14px rgba(0,0,0,0.65);
+  }
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    background:rgba(3,6,10,0.82);
+    backdrop-filter: blur(1px);
+    text-align:center;
+    padding:20px;
+  }
+  .overlay.hidden{ display:none; }
+  .overlay h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:16px;
+    margin:0;
+    letter-spacing:1px;
+  }
+  .overlay h2.go{ color:var(--danger); text-shadow:0 0 16px rgba(255,84,112,0.7); }
+  .overlay h2.win{ color:var(--amber); text-shadow:0 0 16px rgba(255,183,3,0.7); }
+  .overlay h2.idle{ color:var(--cyan); text-shadow:0 0 16px rgba(0,245,212,0.6); }
+  .overlay p{
+    margin:0;
+    font-size:11px;
+    color:var(--dim);
+    max-width:280px;
+    line-height:1.6;
+  }
+  .overlay button{
+    margin-top:6px;
+  }
+
+  /* ---------- CONTROLS ---------- */
+  .controls-row{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  button.btn{
+    background:linear-gradient(180deg, #1e2636, #151b28);
+    border:none;
+    color:var(--ink);
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.5px;
+    padding:10px 18px;
+    border-radius:30px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #060a10, inset 0 1px 0 rgba(255,255,255,0.06);
+    transition:transform 0.05s linear;
+  }
+  button.btn:active{
+    transform:translateY(3px);
+    box-shadow:0 1px 0 #060a10, inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  button.btn.primary{
+    background:linear-gradient(180deg, #00f5d4, #00b89c);
+    color:#04211c;
+    box-shadow:0 4px 0 #017a68;
+  }
+  button.btn.primary:active{ box-shadow:0 1px 0 #017a68; }
+  button.btn:disabled{ opacity:0.35; pointer-events:none; }
+  button.btn.icon{ font-size:14px; padding:10px 14px; }
+
+  .dpad{
+    display:grid;
+    grid-template-columns:repeat(3, 48px);
+    grid-template-rows:repeat(3, 48px);
+    gap:6px;
+    margin:16px auto 0;
+    justify-content:center;
+  }
+  .dpad button{
+    background:linear-gradient(180deg, #1e2636, #12161f);
+    border:none;
+    border-radius:12px;
+    color:var(--dim);
+    font-size:18px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #060a10;
+  }
+  .dpad button:active{ transform:translateY(3px); box-shadow:0 1px 0 #060a10; color:var(--cyan); }
+  .dpad .empty{ background:transparent; box-shadow:none; pointer-events:none; }
+
+  /* ---------- SETTINGS ---------- */
+  details.settings{
+    margin-top:16px;
+    background:var(--screen);
+    border-radius:16px;
+    padding:4px 14px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  details.settings summary{
+    cursor:pointer;
+    padding:10px 0;
+    font-size:11px;
+    letter-spacing:1px;
+    color:var(--dim);
+    list-style:none;
+  }
+  details.settings summary::-webkit-details-marker{ display:none; }
+  details.settings summary::before{ content:"▸ "; color:var(--cyan); }
+  details.settings[open] summary::before{ content:"▾ "; }
+  .settings-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    padding-bottom:14px;
+  }
+  @media (max-width:420px){
+    .settings-grid{ grid-template-columns:1fr; }
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .field label{
+    font-size:9px;
+    color:var(--dim);
+    letter-spacing:1px;
+  }
+  .field select{
+    background:#1a2130;
+    color:var(--ink);
+    border:none;
+    border-radius:8px;
+    padding:8px 10px;
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+  }
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#1a2130;
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:11px;
+    color:var(--ink);
+    grid-column:1 / -1;
+  }
+  .switch{
+    position:relative;
+    width:38px;
+    height:20px;
+    flex-shrink:0;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{
+    position:absolute; inset:0;
+    background:#2c3648;
+    border-radius:20px;
+    cursor:pointer;
+    transition:0.15s;
+  }
+  .switch .slider::before{
+    content:"";
+    position:absolute;
+    height:14px; width:14px;
+    left:3px; top:3px;
+    background:#8ea3bd;
+    border-radius:50%;
+    transition:0.15s;
+  }
+  .switch input:checked + .slider{ background:#00b89c; }
+  .switch input:checked + .slider::before{ transform:translateX(18px); background:#04211c; }
+
+  .footer-hint{
+    text-align:center;
+    color:var(--dim);
+    font-size:9px;
+    margin-top:14px;
+    letter-spacing:0.5px;
+  }
+  .key{
+    display:inline-block;
+    background:var(--screen);
+    padding:2px 7px;
+    border-radius:6px;
+    color:var(--amber);
+    font-weight:700;
+  }
+
+  @media (max-width:480px){
+    .hud .stat .value{ font-size:12px; }
+    .marquee h1{ font-size:11px; }
+    .dpad{ grid-template-columns:repeat(3, 42px); grid-template-rows:repeat(3, 42px); }
+  }
+
+  .levelup-banner{
+    position:absolute;
+    top:14px; left:50%;
+    transform:translate(-50%,-140%);
+    background:rgba(5,10,18,0.88);
+    border:1px solid rgba(255,255,255,0.15);
+    color:var(--ink);
+    padding:8px 18px;
+    border-radius:30px;
+    font-family:'Press Start 2P', monospace;
+    font-size:10px;
+    text-align:center;
+    white-space:nowrap;
+    pointer-events:none;
+    opacity:0;
+    transition:transform 0.35s ease, opacity 0.35s ease;
+    z-index:5;
+  }
+  .levelup-banner.show{
+    transform:translate(-50%,0%);
+    opacity:1;
+  }
+  .combo-float{
+    position:absolute;
+    pointer-events:none;
+    font-family:'Press Start 2P', monospace;
+    font-size:11px;
+    color:var(--amber);
+    text-shadow:0 0 8px rgba(255,183,3,0.8);
+    animation:floatUp 0.8s ease forwards;
+    z-index:6;
+  }
+  @keyframes floatUp{
+    0%{ opacity:1; transform:translateY(0) scale(0.8); }
+    100%{ opacity:0; transform:translateY(-34px) scale(1.1); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .marquee h1{ animation:none; }
+    * { transition:none !important; animation-duration:0.001s !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cabinet">
+  <div class="marquee">
+    <h1 class="display-font">CITY SNAKE</h1>
+    <span class="tag" id="cityTag">Sunny Downtown</span>
+  </div>
+
+  <div class="hud">
+    <div class="stat score">
+      <span class="label">SCORE</span>
+      <span class="value" id="scoreVal">0</span>
+    </div>
+    <div class="stat">
+      <span class="label">LEVEL</span>
+      <span class="value" id="levelVal">1</span>
+    </div>
+    <div class="stat high">
+      <span class="label">BEST</span>
+      <span class="value" id="highVal">0</span>
+    </div>
+  </div>
+
+  <div class="bezel">
+    <div class="screen-wrap">
+      <canvas id="board" width="600" height="600" aria-label="Snake game board"></canvas>
+      <div class="scanlines"></div>
+      <div class="crt-vignette"></div>
+      <div class="levelup-banner" id="levelBanner"></div>
+      <div class="overlay" id="overlay">
+        <h2 class="idle display-font" id="overlayTitle">READY?</h2>
+        <p id="overlayText">Swipe, use arrow keys, or the D-pad. Eat the fruit, avoid yourself. Press Start when you're ready.</p>
+        <button class="btn primary" id="overlayBtn">▶ START</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <button class="btn icon" id="pauseBtn" disabled>⏸ Pause</button>
+    <button class="btn icon" id="restartBtn">⟳ Restart</button>
+    <button class="btn icon" id="muteBtn">🔊 Sound</button>
+  </div>
+
+  <div class="dpad" id="dpad" aria-hidden="false">
+    <div class="empty"></div>
+    <button data-dir="UP">▲</button>
+    <div class="empty"></div>
+    <button data-dir="LEFT">◀</button>
+    <button data-dir="DOWN">▼</button>
+    <button data-dir="RIGHT">▶</button>
+    <div class="empty"></div>
+    <div class="empty"></div>
+    <div class="empty"></div>
+  </div>
+
+  <details class="settings">
+    <summary>SETTINGS &amp; SKINS</summary>
+    <div class="settings-grid">
+      <div class="field">
+        <label>SNAKE COLOR</label>
+        <select id="snakeSkin"></select>
+      </div>
+      <div class="field">
+        <label>FRUIT (used when variety is off)</label>
+        <select id="fruitSkin"></select>
+      </div>
+      <div class="field">
+        <label>DIFFICULTY</label>
+        <select id="difficulty">
+          <option value="chill">Chill</option>
+          <option value="classic" selected>Classic</option>
+          <option value="turbo">Turbo</option>
+          <option value="insane">Insane</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>STARTING CITY</label>
+        <select id="startCity"></select>
+      </div>
+      <div class="toggle-row">
+        <span>🍬 Surprise-me fruit (rotates every bite)</span>
+        <label class="switch">
+          <input type="checkbox" id="varietyToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span>🏙️ City building obstacles (from Lv.3)</span>
+        <label class="switch">
+          <input type="checkbox" id="obstacleToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span>Wrap-around walls (portal mode)</span>
+        <label class="switch">
+          <input type="checkbox" id="wrapToggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span>Show grid lines</span>
+        <label class="switch">
+          <input type="checkbox" id="gridToggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </details>
+
+  <div class="footer-hint">
+    <span class="key">Space</span> pause &nbsp;·&nbsp; <span class="key">R</span> restart &nbsp;·&nbsp; <span class="key">↑↓←→</span> move &nbsp;·&nbsp; swipe on mobile
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ============ CONFIG ============ */
+  const GRID = 20;
+  const DIFFICULTY = {
+    chill:   { start: 190, min: 110, step: 3 },
+    classic: { start: 150, min: 70,  step: 5 },
+    turbo:   { start: 110, min: 55,  step: 6 },
+    insane:  { start: 80,  min: 40,  step: 7 },
+  };
+
+  /* Snake body color palettes — the face/cute treatment is drawn on top of any of these */
+  const SNAKE_SKINS = {
+    minty:   { body:["#8ff0c0","#2fbf8f"], head:["#b7ffe0","#22a67a"], glow:"rgba(47,191,143,0.55)" },
+    bubblegum:{ body:["#ffb3d9","#ff5fa8"], head:["#ffd6ec","#ff3f96"], glow:"rgba(255,95,168,0.55)" },
+    sunshine:{ body:["#ffe38a","#ffb703"], head:["#fff3c4","#ffa000"], glow:"rgba(255,183,3,0.55)" },
+    sky:     { body:["#9fd8ff","#3aa0ff"], head:["#d3ecff","#2b8ae6"], glow:"rgba(58,160,255,0.55)" },
+    grape:   { body:["#d6b3ff","#9b5de5"], head:["#eaddff","#8338ec"], glow:"rgba(155,93,229,0.55)" },
+    rainbow: { rainbow:true, glow:"rgba(255,107,107,0.5)" },
+  };
+
+  /* Expanded fruit pool — a new random one shows up unless "surprise me" is off */
+  const FRUIT_POOL = ["🍎","🍓","🍑","🍇","🍉","🍊","🍋","🍒","🥭","🍍","🍌","🥝","🍐","🍈","🫐","🍅","🍩","🍪","🧁","🍭"];
+  const BONUS_FRUIT = "⭐"; // rare, worth extra + speed sparkle
+
+  /* City levels — each cycle brings a new skyline palette. Difficulty/obstacles ramp with tier. */
+  const CITIES = [
+    { name:"Sunny Downtown",  sky:["#bfe9ff","#eaf7ff"], building:"#7fb8d9", building2:"#5f98bd", accent:"#ffdd66", window:"#fff6c9", obstacles:false },
+    { name:"Golden Hour",     sky:["#ffb37b","#ff7e9d"], building:"#8a4a63", building2:"#5f3049", accent:"#ffe08a", window:"#fff0c2", obstacles:false },
+    { name:"Neon Night",      sky:["#1b1030","#2c1250"], building:"#241a3d", building2:"#170f28", accent:"#ff2e88", window:"#00f5d4", obstacles:true },
+    { name:"Rainy Boulevard", sky:["#2a3b4c","#425466"], building:"#33475a", building2:"#20303f", accent:"#9fd8ff", window:"#cfe9ff", obstacles:true },
+    { name:"Cyber District",  sky:["#05060c","#0d1224"], building:"#101a2e", building2:"#0a1120", accent:"#00f5d4", window:"#ff2e88", obstacles:true },
+    { name:"Skyline Sunrise", sky:["#ffd6e8","#c9b8ff"], building:"#9a86c9", building2:"#7a68a8", accent:"#ffe38a", window:"#fff3c4", obstacles:true },
+  ];
+
+  const STORAGE_KEY = "citySnakeHighScore";
+  const LEVEL_STEP = 5; // score per level-up
+
+  /* ============ STATE ============ */
+  let cols = GRID, rows = GRID;
+  let snake, dir, nextDir, food, isBonusFood, score, level, cityIndex, speed;
+  let running, paused, gameOver, win, wrap, showGrid, obstaclesOn, varietyOn;
+  let obstacles = new Set();
+  let lastTick = 0, rafId = null;
+  let snakeSkin = "minty", fruitSkin = "🍎", difficulty = "classic";
+  let muted = false;
+  let highScore = Number(localStorage.getItem(STORAGE_KEY) || 0);
+  let comboCount = 0, lastEatAt = 0;
+  const COMBO_WINDOW = 3200;
+  let floatTexts = []; // {x,y,text,start}
+  let wiggleSeed = Math.random() * 1000;
+
+  /* ============ DOM ============ */
+  const canvas = document.getElementById("board");
+  const ctx = canvas.getContext("2d");
+  const overlay = document.getElementById("overlay");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlayText = document.getElementById("overlayText");
+  const overlayBtn = document.getElementById("overlayBtn");
+  const scoreVal = document.getElementById("scoreVal");
+  const levelVal = document.getElementById("levelVal");
+  const highVal = document.getElementById("highVal");
+  const cityTag = document.getElementById("cityTag");
+  const levelBanner = document.getElementById("levelBanner");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const muteBtn = document.getElementById("muteBtn");
+  const dpad = document.getElementById("dpad");
+  const snakeSkinSel = document.getElementById("snakeSkin");
+  const fruitSkinSel = document.getElementById("fruitSkin");
+  const difficultySel = document.getElementById("difficulty");
+  const startCitySel = document.getElementById("startCity");
+  const varietyToggle = document.getElementById("varietyToggle");
+  const obstacleToggle = document.getElementById("obstacleToggle");
+  const wrapToggle = document.getElementById("wrapToggle");
+  const gridToggle = document.getElementById("gridToggle");
+
+  highVal.textContent = highScore;
+
+  function fillSelect(sel, entries) {
+    entries.forEach(([value, label]) => {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  }
+  fillSelect(snakeSkinSel, Object.keys(SNAKE_SKINS).map(k => [k, k.charAt(0).toUpperCase()+k.slice(1)]));
+  fillSelect(fruitSkinSel, FRUIT_POOL.map(f => [f, f + " " + f]));
+  fillSelect(startCitySel, CITIES.map((c,i) => [String(i), c.name]));
+  snakeSkinSel.value = snakeSkin;
+  fruitSkinSel.value = fruitSkin;
+  startCitySel.value = "0";
+  varietyOn = varietyToggle.checked;
+  obstaclesOn = obstacleToggle.checked;
+
+  /* ============ AUDIO ============ */
+  let actx = null;
+  function ensureAudio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+  function beep(freq, dur, type="square", vol=0.05){
+    if (muted || !actx) return;
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+    osc.type = type; osc.frequency.value = freq; gain.gain.value = vol;
+    osc.connect(gain).connect(actx.destination);
+    const now = actx.currentTime;
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); osc.stop(now + dur);
+  }
+  const sfx = {
+    eat: (combo) => beep(560 + combo*40, 0.09, "square", 0.06),
+    bonus: () => { [784,988,1175].forEach((f,i)=>setTimeout(()=>beep(f,0.12,"triangle",0.07), i*70)); },
+    levelup: () => { [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.14,"sine",0.06), i*90)); },
+    over: () => { beep(180,0.25,"sawtooth",0.08); setTimeout(()=>beep(90,0.35,"sawtooth",0.07),120); },
+    win:  () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.18,"triangle",0.07), i*110)); },
+  };
+
+  /* ============ RESIZE ============ */
+  function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+  window.addEventListener("resize", resizeCanvas);
+
+  /* ============ HELPERS ============ */
+  function seededRand(seed){
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+  function cellKey(r,c){ return r+","+c; }
+
+  function freshSnake(){
+    const cy = Math.floor(rows/2);
+    return [[cy,10],[cy,9],[cy,8]];
+  }
+
+  function occupiedSet(){
+    const occ = new Set(snake.map(c => cellKey(c[0],c[1])));
+    obstacles.forEach(k => occ.add(k));
+    return occ;
+  }
+
+  function randomFood(){
+    const occ = occupiedSet();
+    const free = [];
+    for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) if(!occ.has(cellKey(r,c))) free.push([r,c]);
+    if (!free.length) return null;
+    return free[Math.floor(Math.random()*free.length)];
+  }
+
+  function pickFruitEmoji(){
+    if (Math.random() < 0.06) { isBonusFood = true; return BONUS_FRUIT; }
+    isBonusFood = false;
+    if (varietyOn) return FRUIT_POOL[Math.floor(Math.random()*FRUIT_POOL.length)];
+    return fruitSkin;
+  }
+
+  function spawnFood(){
+    const pos = randomFood();
+    if (!pos) return null;
+    return { pos, emoji: pickFruitEmoji() };
+  }
+
+  function buildObstacles(){
+    obstacles = new Set();
+    const city = CITIES[cityIndex];
+    if (!obstaclesOn || !city.obstacles) return;
+    const tier = Math.min(Math.floor(level/1), 6);
+    const count = Math.min(4 + tier, 14);
+    const snakeSet = new Set(snake.map(c => cellKey(c[0],c[1])));
+    let placed = 0, attempts = 0;
+    while (placed < count && attempts < 400){
+      attempts++;
+      const r = 2 + Math.floor(Math.random()*(rows-4));
+      const c = 2 + Math.floor(Math.random()*(cols-4));
+      const k = cellKey(r,c);
+      // keep clear zone around snake start
+      if (Math.abs(r-Math.floor(rows/2))<3 && c<13) continue;
+      if (snakeSet.has(k) || obstacles.has(k)) continue;
+      obstacles.add(k);
+      placed++;
+    }
+  }
+
+  /* ============ STATE MGMT ============ */
+  function resetState(){
+    snake = freshSnake();
+    dir = "RIGHT"; nextDir = "RIGHT";
+    score = 0; level = 1;
+    cityIndex = Number(startCitySel.value || 0);
+    updateCityTag();
+    buildObstacles();
+    const spawn = spawnFood();
+    food = spawn ? spawn.pos : null;
+    let currentFruitEmoji = spawn ? spawn.emoji : fruitSkin;
+    window.__currentFruitEmoji = currentFruitEmoji;
+    const d = DIFFICULTY[difficulty];
+    speed = d.start;
+    running = false; paused = false; gameOver = false; win = false;
+    comboCount = 0; lastEatAt = 0;
+    floatTexts = [];
+    updateHud();
+  }
+
+  function updateHud(){
+    scoreVal.textContent = score;
+    levelVal.textContent = level;
+    highVal.textContent = highScore;
+  }
+  function updateCityTag(){
+    cityTag.textContent = CITIES[cityIndex].name;
+  }
+
+  function showLevelBanner(text){
+    levelBanner.textContent = text;
+    levelBanner.classList.add("show");
+    clearTimeout(showLevelBanner._t);
+    showLevelBanner._t = setTimeout(() => levelBanner.classList.remove("show"), 1400);
+  }
+
+  function addFloatText(r, c, text, color){
+    floatTexts.push({ r, c, text, color, start: performance.now() });
+  }
+
+  function setOverlay(mode){
+    overlay.classList.remove("hidden");
+    if (mode === "idle"){
+      overlayTitle.className = "idle display-font";
+      overlayTitle.textContent = "READY?";
+      overlayText.textContent = "Swipe, use arrow keys, or the D-pad. Grow your cutie, dodge the buildings, level up the city.";
+      overlayBtn.textContent = "▶ START";
+    } else if (mode === "paused"){
+      overlayTitle.className = "idle display-font";
+      overlayTitle.textContent = "PAUSED";
+      overlayText.textContent = "Take a breath. Resume whenever you're ready.";
+      overlayBtn.textContent = "▶ RESUME";
+    } else if (mode === "gameover"){
+      overlayTitle.className = "go display-font";
+      overlayTitle.textContent = "GAME OVER";
+      overlayText.textContent = `Final score: ${score} · reached ${CITIES[cityIndex].name}` + (score >= highScore && score>0 ? "  —  new best! 🏆" : "");
+      overlayBtn.textContent = "⟳ TRY AGAIN";
+    } else if (mode === "win"){
+      overlayTitle.className = "win display-font";
+      overlayTitle.textContent = "YOU WIN!";
+      overlayText.textContent = `You filled the whole board. Score: ${score}. Absolute legend.`;
+      overlayBtn.textContent = "⟳ PLAY AGAIN";
+    }
+  }
+  function hideOverlay(){ overlay.classList.add("hidden"); }
+
+  function start(){
+    ensureAudio();
+    if (gameOver || win) resetState();
+    running = true; paused = false;
+    hideOverlay();
+    pauseBtn.disabled = false;
+    pauseBtn.textContent = "⏸ Pause";
+    lastTick = performance.now();
+    if (!rafId) rafId = requestAnimationFrame(loop);
+  }
+
+  function togglePause(){
+    if (!running) { start(); return; }
+    paused = !paused;
+    if (paused){ setOverlay("paused"); pauseBtn.textContent = "▶ Resume"; }
+    else { hideOverlay(); pauseBtn.textContent = "⏸ Pause"; lastTick = performance.now(); }
+  }
+
+  function restart(){
+    resetState();
+    hideOverlay();
+    start();
+  }
+
+  const OPP = { UP:"DOWN", DOWN:"UP", LEFT:"RIGHT", RIGHT:"LEFT" };
+  function queueDir(d){
+    if (!running || paused || gameOver || win) return;
+    if (OPP[d] === dir) return;
+    nextDir = d;
+  }
+
+  function tick(){
+    dir = nextDir;
+    const head = snake[0];
+    let [r,c] = head;
+    if (dir==="UP") r--; else if (dir==="DOWN") r++; else if (dir==="LEFT") c--; else if (dir==="RIGHT") c++;
+
+    if (wrap){
+      r = (r+rows)%rows; c = (c+cols)%cols;
+    } else if (r<0||r>=rows||c<0||c>=cols){
+      return endGame(false);
+    }
+
+    if (obstacles.has(cellKey(r,c))) return endGame(false);
+
+    const eating = food && r===food[0] && c===food[1];
+    const newHead = [r,c];
+    const bodyToCheck = eating ? snake : snake.slice(0,-1);
+    if (bodyToCheck.some(seg => seg[0]===r && seg[1]===c)) return endGame(false);
+
+    snake = eating ? [newHead, ...snake] : [newHead, ...snake.slice(0,-1)];
+
+    if (eating){
+      const now = performance.now();
+      comboCount = (now - lastEatAt < COMBO_WINDOW) ? comboCount + 1 : 1;
+      lastEatAt = now;
+      const base = isBonusFood ? 3 : 1;
+      const comboBonus = Math.min(comboCount - 1, 4);
+      const gained = base + comboBonus;
+      score += gained;
+
+      if (isBonusFood){ sfx.bonus(); addFloatText(r,c, `+${gained} ⭐`, "#ffd700"); }
+      else { sfx.eat(comboCount); addFloatText(r,c, comboCount>1 ? `+${gained} x${comboCount}` : `+${gained}`, "#00f5d4"); }
+
+      const newLevel = Math.floor(score/LEVEL_STEP)+1;
+      if (newLevel !== level){
+        level = newLevel;
+        const newCityIndex = (level-1) % CITIES.length;
+        if (newCityIndex !== cityIndex){
+          cityIndex = newCityIndex;
+          updateCityTag();
+          showLevelBanner(`LEVEL ${level} · ${CITIES[cityIndex].name.toUpperCase()}`);
+        } else {
+          showLevelBanner(`LEVEL ${level}`);
+        }
+        sfx.levelup();
+        buildObstacles();
+      }
+
+      const d = DIFFICULTY[difficulty];
+      speed = Math.max(d.min, d.start - Math.floor(score/4)*d.step);
+      if (score > highScore){ highScore = score; localStorage.setItem(STORAGE_KEY, String(highScore)); }
+
+      const spawn = spawnFood();
+      if (!spawn) return endGame(true);
+      food = spawn.pos;
+      window.__currentFruitEmoji = spawn.emoji;
+      updateHud();
+    }
+  }
+
+  function endGame(didWin){
+    running = false;
+    if (didWin){ win = true; sfx.win(); setOverlay("win"); }
+    else { gameOver = true; sfx.over(); setOverlay("gameover"); }
+    pauseBtn.disabled = true;
+  }
+
+  /* ============ RENDER ============ */
+  function cellSize(){ return canvas.getBoundingClientRect().width / cols; }
+
+  function drawSky(rect){
+    const city = CITIES[cityIndex];
+    const g = ctx.createLinearGradient(0,0,0,rect.height);
+    g.addColorStop(0, city.sky[0]);
+    g.addColorStop(1, city.sky[1]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,rect.width,rect.height);
+  }
+
+  function drawSkyline(rect, cs){
+    const city = CITIES[cityIndex];
+    // back row (top of screen, distant skyline, static per city via seed)
+    ctx.globalAlpha = 0.55;
+    let x = 0, seed = cityIndex*7+1;
+    while (x < rect.width){
+      const w = 18 + seededRand(seed)*26; seed++;
+      const h = 30 + seededRand(seed)*60; seed++;
+      ctx.fillStyle = city.building2;
+      ctx.fillRect(x, 0, w, h);
+      x += w + 3;
+    }
+    ctx.globalAlpha = 1;
+    // bottom row (foreground skyline, sits along bottom edge like a city floor)
+    x = 0; seed = cityIndex*13+5;
+    while (x < rect.width){
+      const w = 20 + seededRand(seed)*30; seed++;
+      const h = 26 + seededRand(seed)*50; seed++;
+      ctx.fillStyle = city.building;
+      ctx.fillRect(x, rect.height-h, w, h);
+      // windows
+      ctx.fillStyle = city.window;
+      const rowsW = Math.max(1, Math.floor(h/14));
+      const colsW = Math.max(1, Math.floor(w/10));
+      for (let ri=0; ri<rowsW; ri++){
+        for (let ci=0; ci<colsW; ci++){
+          if (seededRand(seed+ri*3+ci)>0.45) continue;
+          ctx.globalAlpha = 0.85;
+          ctx.fillRect(x+4+ci*10, rect.height-h+6+ri*14, 4, 5);
+          ctx.globalAlpha = 1;
+        }
+      }
+      x += w + 4;
+    }
+  }
+
+  function drawObstacles(cs){
+    const city = CITIES[cityIndex];
+    obstacles.forEach(k => {
+      const [r,c] = k.split(",").map(Number);
+      const x = c*cs, y = r*cs;
+      ctx.save();
+      ctx.shadowColor = city.accent;
+      ctx.shadowBlur = cs*0.3;
+      ctx.fillStyle = city.building2;
+      const pad = cs*0.08;
+      ctx.fillRect(x+pad, y+pad, cs-pad*2, cs-pad*2);
+      ctx.fillStyle = city.accent;
+      ctx.fillRect(x+cs*0.3, y+cs*0.3, cs*0.15, cs*0.15);
+      ctx.fillRect(x+cs*0.55, y+cs*0.3, cs*0.15, cs*0.15);
+      ctx.fillRect(x+cs*0.3, y+cs*0.55, cs*0.15, cs*0.15);
+      ctx.fillRect(x+cs*0.55, y+cs*0.55, cs*0.15, cs*0.15);
+      ctx.restore();
+    });
+  }
+
+  function draw(){
+    const rect = canvas.getBoundingClientRect();
+    const cs = cellSize();
+    ctx.clearRect(0,0,rect.width,rect.height);
+    drawSky(rect);
+    drawSkyline(rect, cs);
+
+    if (showGrid){
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      for (let i=1;i<cols;i++){
+        ctx.beginPath(); ctx.moveTo(i*cs,0); ctx.lineTo(i*cs,rect.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,i*cs); ctx.lineTo(rect.width,i*cs); ctx.stroke();
+      }
+    }
+
+    if (obstaclesOn) drawObstacles(cs);
+    if (!snake) return;
+
+    // food
+    if (food){
+      const [fr,fc] = food;
+      const cx = fc*cs + cs/2, cy = fr*cs + cs/2;
+      const bob = Math.sin(performance.now()/220) * cs*0.06;
+      const emoji = window.__currentFruitEmoji || fruitSkin;
+      if (isBonusFood){
+        ctx.save();
+        ctx.shadowColor = "#ffd700";
+        ctx.shadowBlur = cs*0.6;
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.font = `${cs*0.72}px serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(emoji, cx, cy+bob);
+      ctx.restore();
+    }
+
+    // snake — cute chibi rendering
+    const skin = SNAKE_SKINS[snakeSkin];
+    for (let i=snake.length-1;i>=0;i--){
+      const [r,c] = snake[i];
+      const wiggle = Math.sin(performance.now()/160 + i*0.9 + wiggleSeed) * cs*0.05;
+      const perpX = (dir==="UP"||dir==="DOWN") ? wiggle : 0;
+      const perpY = (dir==="LEFT"||dir==="RIGHT") ? wiggle : 0;
+      const cx = c*cs + cs/2 + (i===0?0:perpX);
+      const cy = r*cs + cs/2 + (i===0?0:perpY);
+      const isHead = i===0;
+      const radius = isHead ? cs*0.47 : cs*0.40 * (1 - Math.min(i,10)*0.01);
+      let colors;
+      if (skin.rainbow){
+        const hue = (performance.now()/12 + i*18) % 360;
+        colors = [`hsl(${hue},90%,70%)`, `hsl(${(hue+40)%360},85%,50%)`];
+      } else {
+        colors = isHead ? skin.head : skin.body;
+      }
+      const grad = ctx.createRadialGradient(cx-radius*0.3, cy-radius*0.3, radius*0.1, cx, cy, radius);
+      grad.addColorStop(0, colors[0]);
+      grad.addColorStop(1, colors[1]);
+      ctx.save();
+      ctx.shadowColor = skin.glow || "transparent";
+      ctx.shadowBlur = isHead ? cs*0.45 : cs*0.2;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      if (isHead){
+        drawCuteFace(cx, cy, radius);
+      }
+    }
+
+    // floating combo/score texts
+    const now = performance.now();
+    floatTexts = floatTexts.filter(f => now - f.start < 800);
+    floatTexts.forEach(f => {
+      const t = (now - f.start)/800;
+      const x = f.c*cs + cs/2, y = f.r*cs + cs/2 - t*34;
+      ctx.save();
+      ctx.globalAlpha = 1 - t;
+      ctx.font = `bold ${cs*0.38}px 'Press Start 2P', monospace`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, x, y);
+      ctx.restore();
+    });
+  }
+
+  function drawCuteFace(cx, cy, radius){
+    // hair tuft
+    ctx.save();
+    ctx.strokeStyle = "#2b2b2b";
+    ctx.lineWidth = radius*0.12;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - radius*0.15, cy - radius*0.95);
+    ctx.quadraticCurveTo(cx, cy - radius*1.5, cx + radius*0.2, cy - radius*0.95);
+    ctx.stroke();
+    ctx.restore();
+
+    // eyes (direction-aware placement)
+    const eyeOffset = radius*0.34;
+    let ex1=cx, ey1=cy, ex2=cx, ey2=cy;
+    if (dir==="RIGHT"){ ex1=cx+eyeOffset*0.5; ey1=cy-eyeOffset*0.7; ex2=cx+eyeOffset*0.5; ey2=cy+eyeOffset*0.7; }
+    else if (dir==="LEFT"){ ex1=cx-eyeOffset*0.5; ey1=cy-eyeOffset*0.7; ex2=cx-eyeOffset*0.5; ey2=cy+eyeOffset*0.7; }
+    else if (dir==="UP"){ ex1=cx-eyeOffset*0.7; ey1=cy-eyeOffset*0.5; ex2=cx+eyeOffset*0.7; ey2=cy-eyeOffset*0.5; }
+    else { ex1=cx-eyeOffset*0.7; ey1=cy+eyeOffset*0.5; ex2=cx+eyeOffset*0.7; ey2=cy+eyeOffset*0.5; }
+
+    [[ex1,ey1],[ex2,ey2]].forEach(([ex,ey]) => {
+      ctx.fillStyle = "#2b2b2b";
+      ctx.beginPath(); ctx.arc(ex,ey,radius*0.16,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(ex-radius*0.05,ey-radius*0.05,radius*0.06,0,Math.PI*2); ctx.fill();
+    });
+
+    // blush cheeks
+    ctx.fillStyle = "rgba(255,120,150,0.55)";
+    const blushOffset = radius*0.6;
+    ctx.beginPath(); ctx.ellipse(cx-blushOffset, cy+radius*0.15, radius*0.16, radius*0.1, 0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx+blushOffset, cy+radius*0.15, radius*0.16, radius*0.1, 0,0,Math.PI*2); ctx.fill();
+
+    // smile
+    ctx.strokeStyle = "#2b2b2b";
+    ctx.lineWidth = radius*0.08;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(cx, cy+radius*0.15, radius*0.28, 0.15*Math.PI, 0.85*Math.PI);
+    ctx.stroke();
+  }
+
+  /* ============ MAIN LOOP ============ */
+  function loop(ts){
+    rafId = requestAnimationFrame(loop);
+    if (running && !paused && !gameOver && !win){
+      if (ts - lastTick >= speed){
+        lastTick = ts;
+        tick();
+      }
+    }
+    draw();
+  }
+
+  /* ============ INPUT ============ */
+  window.addEventListener("keydown", (e) => {
+    const map = { ArrowUp:"UP", ArrowDown:"DOWN", ArrowLeft:"LEFT", ArrowRight:"RIGHT",
+                  w:"UP", s:"DOWN", a:"LEFT", d:"RIGHT" };
+    if (e.code === "Space"){ e.preventDefault(); togglePause(); return; }
+    if (e.key === "r" || e.key === "R"){ e.preventDefault(); restart(); return; }
+    const d = map[e.key];
+    if (d){ e.preventDefault(); queueDir(d); }
+  });
+
+  dpad.querySelectorAll("button[data-dir]").forEach(btn => {
+    btn.addEventListener("click", () => queueDir(btn.dataset.dir));
+  });
+
+  let touchStart = null;
+  canvas.addEventListener("touchstart", (e) => {
+    const t = e.changedTouches[0];
+    touchStart = { x:t.clientX, y:t.clientY };
+  }, {passive:true});
+  canvas.addEventListener("touchend", (e) => {
+    if (!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) { touchStart = null; return; }
+    if (Math.abs(dx) > Math.abs(dy)) queueDir(dx > 0 ? "RIGHT" : "LEFT");
+    else queueDir(dy > 0 ? "DOWN" : "UP");
+    touchStart = null;
+  }, {passive:true});
+
+  overlayBtn.addEventListener("click", () => {
+    if (gameOver || win) restart();
+    else if (paused) togglePause();
+    else start();
+  });
+  pauseBtn.addEventListener("click", togglePause);
+  restartBtn.addEventListener("click", restart);
+  muteBtn.addEventListener("click", () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? "🔇 Sound" : "🔊 Sound";
+  });
+
+  snakeSkinSel.addEventListener("change", e => snakeSkin = e.target.value);
+  fruitSkinSel.addEventListener("change", e => fruitSkin = e.target.value);
+  difficultySel.addEventListener("change", e => {
+    difficulty = e.target.value;
+    if (!running) speed = DIFFICULTY[difficulty].start;
+  });
+  startCitySel.addEventListener("change", () => {
+    if (!running){ cityIndex = Number(startCitySel.value); updateCityTag(); buildObstacles(); }
+  });
+  varietyToggle.addEventListener("change", e => varietyOn = e.target.checked);
+  obstacleToggle.addEventListener("change", e => { obstaclesOn = e.target.checked; buildObstacles(); });
+  wrapToggle.addEventListener("change", e => wrap = e.target.checked);
+  gridToggle.addEventListener("change", e => showGrid = e.target.checked);
+
+  /* ============ INIT ============ */
+  wrap = wrapToggle.checked;
+  showGrid = gridToggle.checked;
+  resetState();
+  setOverlay("idle");
+  resizeCanvas();
+  rafId = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
